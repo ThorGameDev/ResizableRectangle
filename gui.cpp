@@ -1,14 +1,13 @@
-#include <SDL_stdinc.h>
-#include <SDL_video.h>
-#include <SDL_audio.h>
-#include <fstream>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
-#include <SDL.h>
-#include <SDL_render.h>
-#include <SDL_events.h>
-#include <SDL_keycode.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_video.h>
+#include <SDL2/SDL_audio.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
