@@ -2,7 +2,7 @@
 CXX = clang++
 
 # Define the source files
-SOURCES = ./gui.cpp
+SOURCES = ./game.cpp ./AudioPlayer.cpp
 
 # Define the object files
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -11,8 +11,9 @@ OBJECTS = $(SOURCES:.cpp=.o)
 CXXFLAGS = -O3
 
 # SDL flags
-SDL_FLAGS = `sdl2-config --cflags`
-SDL_LIBS = `sdl2-config --libs`
+#`pkg-config --libs --cflags sdl3`
+SDL_FLAGS = `pkg-config --cflags sdl3`
+SDL_LIBS = `pkg-config --libs sdl3`
 
 # Combine all flags and libraries
 FLAGS = $(CXXFLAGS) $(SDL_FLAGS)

@@ -1,13 +1,11 @@
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_video.h>
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_keycode.h>
+#include "AudioPlayer.h"
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_video.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keycode.h>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -15,6 +13,10 @@
 #include <deque>
 #include <ostream>
 #include <random>
+
+#ifdef __EMSCRIPTEN__
+//#include <emscripten.h>
+#endif
 
 //Screen
 const int SCREEN_X = 980;
@@ -58,98 +60,6 @@ struct Effects
     double phaseTime = 0;
     int phases = 0;
 };
-
-class AudioPlayer
-{
-    public:
-        AudioPlayer();
-        ~AudioPlayer();
-        void playSound();
-        void playSong();
-        void pauseSong();
-        void checkRestart();
-    private:
-        SDL_AudioSpec wavSpec;
-        Uint32 wavLength;
-        Uint8 *wavBuffer;
-        SDL_AudioDeviceID deviceId;
-
-#ifndef __EMSCRIPTEN__
-        SDL_AudioSpec wavSpecSfx;
-        Uint32 wavLengthSfx;
-        Uint8 *wavBufferSfx;
-        int sfxdevice = 0;
-        std::vector<SDL_AudioDeviceID> deviceIdSfx;
-#endif
-};
-
-AudioPlayer::AudioPlayer()
-{
-    SDL_Init(SDL_INIT_AUDIO );
-    std::cout << "Create AudioPlayer" << std::endl;
-    SDL_LoadWAV("resources/song.wav", &wavSpec, &wavBuffer, &wavLength);
-    deviceId = SDL_OpenAudioDevice(NULL, 0, &wavSpec, NULL, 0);
-    SDL_QueueAudio(deviceId, wavBuffer, wavLength);
-    playSong();
-
-
-#ifndef __EMSCRIPTEN__
-    SDL_LoadWAV("resources/sound.wav", &wavSpecSfx, &wavBufferSfx, &wavLengthSfx);
-    for(int i=0; i <= SFXPLAYERS; i++)
-    {
-        deviceIdSfx.push_back(SDL_OpenAudioDevice(NULL, 0, &wavSpecSfx, NULL, 0));
-        SDL_PauseAudioDevice(deviceIdSfx[i], 0);
-    }
-#endif
-}
-
-AudioPlayer::~AudioPlayer()
-{
-    SDL_CloseAudioDevice(deviceId);
-    SDL_FreeWAV(wavBuffer);
-#ifndef __EMSCRIPTEN__
-    for(int i=0; i <= SFXPLAYERS; i++)
-    {
-        SDL_CloseAudioDevice(deviceIdSfx[i]);
-    }
-    SDL_FreeWAV(wavBufferSfx);
-#endif
-    std::cout << "Destroyed AudioPlayer" << std::endl;
-}
-
-void AudioPlayer::playSound()
-{
-#ifndef __EMSCRIPTEN__
-    SDL_QueueAudio(deviceIdSfx[sfxdevice], wavBufferSfx, wavLengthSfx);
-    sfxdevice += 1;
-    if(sfxdevice >= SFXPLAYERS)
-    {
-        sfxdevice = 0;
-    }
-#endif
-}
-
-void AudioPlayer::playSong()
-{
-    if(MUSIC)
-    {
-        SDL_PauseAudioDevice(deviceId, 0);
-    }
-}
-
-void AudioPlayer::pauseSong()
-{
-    SDL_PauseAudioDevice(deviceId, 1);
-}
-
-void AudioPlayer::checkRestart()
-{
-    if(SDL_GetQueuedAudioSize(deviceId) <= 0)
-    {
-        int success = SDL_QueueAudio(deviceId, wavBuffer, wavLength);
-    }
-    //std::cout << "QueuedSize: "<< SDL_GetQueuedAudioSize(deviceId) << std::endl;
-}
 
 int randomRange(int min, int max)
 {
@@ -203,10 +113,10 @@ struct Player
     double hp = 255;
 };
 
-void renderSquare(int x, int y, int scaleX, int scaleY, int r, int g, int b, SDL_Renderer* renderer)
+void renderSquare(float x, float y, float scaleX, float scaleY, int r, int g, int b, SDL_Renderer* renderer)
 {
     SDL_SetRenderDrawColor(renderer, r,  g, b, 255);
-    SDL_Rect rect = {x - scaleX/2, y - scaleY/2, scaleX, scaleY};
+    SDL_FRect rect = {x - scaleX/2, y - scaleY/2, scaleX, scaleY};
     SDL_RenderFillRect(renderer, &rect);
 }
 
@@ -268,7 +178,6 @@ void Game::newGame()
     player.x = SCREEN_X / 2;
     player.y = SCREEN_Y / 2;
     player.hp = 255;
-    //things.clear();
     intensity = 1;
     timeTillWave = TIMEPERWAVE;
     currentWaveID = 0;
@@ -281,10 +190,11 @@ Game::Game()
 {
     std::cout << "Game has been created" << std::endl;
     SDL_Init(SDL_INIT_VIDEO );
-    window = SDL_CreateWindow("Change", 100, 100, SCREEN_X, SCREEN_Y, SDL_WINDOW_SHOWN);
-    SDL_SetWindowResizable(window, SDL_TRUE);
-    renderer = SDL_CreateRenderer(window, -1, 0);
-    SDL_RenderSetLogicalSize(renderer, SCREEN_X, SCREEN_Y);
+    if (!SDL_CreateWindowAndRenderer("RescizableRectangles", SCREEN_X, SCREEN_Y, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+        exit(1);
+    }
+    SDL_SetRenderLogicalPresentation(renderer, SCREEN_X, SCREEN_Y, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     newGame();
 }
 
@@ -552,14 +462,14 @@ void Game::input()
     while(SDL_PollEvent(&Event))
     {
 #ifndef __EMSCRIPTEN__
-        if (Event.type == SDL_QUIT)
+        if (Event.type == SDL_EVENT_QUIT)
         {
             quitting = true;
         }
 #endif
-        if (Event.type == SDL_KEYDOWN)
+        if (Event.type == SDL_EVENT_KEY_DOWN)
         {
-            switch(Event.key.keysym.sym)
+            switch(Event.key.key)
             {
 #ifndef __EMSCRIPTEN__
                 case SDLK_ESCAPE:
@@ -567,19 +477,19 @@ void Game::input()
                     break;
 #endif
                 case SDLK_UP:
-                case SDLK_w:
+                case SDLK_W:
                     player.up = true;
                     break;
                 case SDLK_DOWN:
-                case SDLK_s:
+                case SDLK_S:
                     player.down = true;
                     break;
                 case SDLK_LEFT:
-                case SDLK_a:
+                case SDLK_A:
                     player.left = true;
                     break;
                 case SDLK_RIGHT:
-                case SDLK_d:
+                case SDLK_D:
                     player.right = true;
                     break;
                 case SDLK_SPACE:
@@ -587,24 +497,24 @@ void Game::input()
                     break;
             }
         }
-        if (Event.type == SDL_KEYUP)
+        if (Event.type == SDL_EVENT_KEY_UP)
         {
-            switch(Event.key.keysym.sym)
+            switch(Event.key.key)
             {
                 case SDLK_UP:
-                case SDLK_w:
+                case SDLK_W:
                     player.up = false;
                     break;
                 case SDLK_DOWN:
-                case SDLK_s:
+                case SDLK_S:
                     player.down = false;
                     break;
                 case SDLK_LEFT:
-                case SDLK_a:
+                case SDLK_A:
                     player.left = false;
                     break;
                 case SDLK_RIGHT:
-                case SDLK_d:
+                case SDLK_D:
                     player.right = false;
                     break;
                 case SDLK_SPACE:
