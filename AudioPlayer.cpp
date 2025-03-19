@@ -14,19 +14,19 @@ struct SoundData {
     SDL_AudioDeviceID audio_device;
 };
 
+
 static SoundClip* LoadSound(const char *path)
 {
     SoundClip* sound = new SoundClip();
     char *full_path = NULL;
 
     /* Load the .wav files from wherever the app is being run from. */
-    SDL_asprintf(&full_path, "%s%s", SDL_GetBasePath(), path);  /* allocate a string of the full file path */
+    SDL_asprintf(&full_path, "%s%s", SDL_GetBasePath(), path);
     std::cout << "Loading " << full_path << std::endl;
     if (!SDL_LoadWAV(full_path, &sound->spec, &sound->data, &sound->data_len)) {
         SDL_Log("Couldn't load .wav file: %s", SDL_GetError());
         return nullptr;
     }
-
     sound->stream = SDL_CreateAudioStream(&sound->spec, NULL);
     if (!sound->stream) {
         SDL_Log("Couldn't create audio stream: %s", SDL_GetError());
